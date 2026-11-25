@@ -250,45 +250,162 @@
     defs.append(m);
   };
 
-  /* ---------- Flikar: lista där varje punkt börjar med **Rubrik**: ---------- */
-  document.querySelectorAll('.figur[data-typ="flikar"]').forEach((fig) => {
+  // Ritar om pilar mellan element när storleken ändras.
+  const ritaOm = (behallare, rita) => {
+    const kor = () => requestAnimationFrame(rita);
+    if ('ResizeObserver' in window) new ResizeObserver(kor).observe(behallare); else window.addEventListener('resize', kor);
+    kor();
+  };
+  const kant = (rut, bas, sida) => {
+    const r = rut.getBoundingClientRect(), b = bas.getBoundingClientRect();
+    const x = { v: r.left - b.left, h: r.right - b.left, m: (r.left + r.right) / 2 - b.left }[sida[0]];
+    const y = { o: r.top - b.top, n: r.bottom - b.top, m: (r.top + r.bottom) / 2 - b.top }[sida[1]];
+    return [x, y];
+  };
+
+  /* ---------- Kolumner: lista där varje punkt börjar med **Rubrik**; alla visas samtidigt ---------- */
+  document.querySelectorAll('.figur[data-typ="kolumner"]').forEach((fig) => {
     const lista = fig.querySelector('ul, ol');
-    const punkter = [...lista.children];
-    const rad = el('div', { class: 'flik-rad', role: 'tablist', 'aria-label': fig.dataset.etikett || 'Välj' });
-    const paneler = [];
-    const flikar = punkter.map((li, i) => {
+    const toner = (fig.dataset.toner || '').split(',');
+    const wrap = el('div', { class: 'kolumner' });
+    let maxRader = 0;
+    const kols = [...lista.children].map((li, i) => {
       const forsta = li.querySelector('strong');
       const namn = forsta.textContent.replace(/:$/, '').trim();
       forsta.remove();
-      // Ta bort inledande kolon efter rubriken
-      const tn = li.firstChild && li.firstChild.nodeType === 3 ? li.firstChild : (li.firstElementChild && li.firstElementChild.firstChild);
-      if (tn && tn.nodeType === 3) tn.textContent = tn.textContent.replace(/^\s*:\s*/, '');
-      const id = `${fig.id || 'flik'}-${i}`;
-      const panel = el('div', { class: 'flik-panel', role: 'tabpanel', id: id + '-p', 'aria-labelledby': id + '-f', tabindex: '0' });
-      panel.innerHTML = li.innerHTML;
-      // Rader med pilar blir en kedja av steg
-      panel.querySelectorAll('p').forEach((p) => {
+      const k = el('div', { class: 'kolumn' });
+      if (toner[i] && toner[i].trim()) k.dataset.ton = toner[i].trim();
+      k.append(el('h4', { class: 'kolumn-rubrik', text: namn }));
+      const tmp = el('div', { html: li.innerHTML.trim() });
+      if (!tmp.querySelector('p')) tmp.innerHTML = `<p>${tmp.innerHTML}</p>`;
+      const f = tmp.querySelector('p');
+      if (f && f.firstChild && f.firstChild.nodeType === 3) f.firstChild.textContent = f.firstChild.textContent.replace(/^\s*:\s*/, '');
+      [...tmp.children].forEach((c) => k.append(c));
+      k.querySelectorAll('p').forEach((p) => {
         if (!p.textContent.includes('→')) return;
-        const steg = p.innerHTML.split('→').map((s) => s.trim());
         const kedja = el('div', { class: 'kedja' });
-        steg.forEach((s, j) => { if (j) kedja.append(el('span', { class: 'kedja-pil', 'aria-hidden': 'true', text: '→' })); kedja.append(el('span', { class: 'kedja-steg', html: s })); });
+        p.innerHTML.split('→').map((s) => s.trim()).forEach((s, j) => {
+          if (j) kedja.append(el('span', { class: 'kedja-pil', 'aria-hidden': 'true', text: '↓' }));
+          kedja.append(el('span', { class: 'kedja-steg', html: s }));
+        });
         p.replaceWith(kedja);
       });
-      const toner = (fig.dataset.toner || '').split(',');
-      if (toner[i]) panel.dataset.ton = toner[i].trim();
-      paneler.push(panel);
-      const b = el('button', { type: 'button', role: 'tab', id: id + '-f', 'aria-controls': id + '-p', 'aria-selected': 'false', tabindex: '-1', text: namn });
-      b.addEventListener('click', () => valj(i));
-      rad.append(b);
+      maxRader = Math.max(maxRader, k.children.length);
+      return k;
+    });
+    kols.forEach((k) => { k.style.gridRow = `span ${maxRader}`; wrap.append(k); });
+    wrap.style.setProperty('--n', kols.length);
+    lista.replaceWith(wrap);
+    // Valfri lista med påståenden som markerar en kolumn: ::: {.signaler rubrik="..."} med [Kolumnnamn]{.till}
+    const sig = fig.querySelector('.signaler');
+    if (sig) {
+      const rad = el('div', { class: 'signaler-rad', role: 'group', 'aria-label': sig.dataset.rubrik || 'Välj' });
+      let aktiv = null;
+      const knappar = [...sig.querySelectorAll('li')].map((li) => {
+        const till = li.querySelector('.till');
+        const mal = till.textContent.trim();
+        till.remove();
+        const idx = kols.findIndex((k) => k.querySelector('.kolumn-rubrik').textContent.trim().startsWith(mal));
+        const b = el('button', { type: 'button', 'aria-pressed': 'false', html: li.innerHTML.trim() });
+        b.addEventListener('click', () => {
+          aktiv = aktiv === b ? null : b;
+          knappar.forEach((x) => x.setAttribute('aria-pressed', String(x === aktiv)));
+          wrap.classList.toggle('fokus', !!aktiv);
+          kols.forEach((k, j) => k.classList.toggle('aktiv', !!aktiv && j === idx));
+        });
+        rad.append(b);
+        return b;
+      });
+      sig.remove();
+      wrap.before(el('div', { class: 'signaler-ruta' }, sig.dataset.rubrik ? el('p', { class: 'signaler-rubrik', text: sig.dataset.rubrik }) : '', rad));
+    }
+  });
+
+  /* ---------- Grupperade staplar: alla serier samtidigt, förklaringen markerar en serie ----------
+     Tabell: Namn | serie 1 | serie 2 ...  (– = ingen uppgift) */
+  document.querySelectorAll('.figur[data-typ="grupperade"]').forEach((fig) => {
+    const { t, rub, rader } = lasTabell(fig);
+    const serier = rub.slice(1);
+    const data = rader.map((c) => ({ namn: c[0].text, v: c.slice(1).map((x) => lasTal(x.text)) }));
+    const alla = data.flatMap((d) => d.v).filter((x) => !Number.isNaN(x));
+    const steg = fig.dataset.steg ? lasTal(fig.dataset.steg) : 0.2;
+    let max = Math.ceil(Math.max(...alla) / steg) * steg;
+    if (max - Math.max(...alla) < steg / 2) max += steg;
+    const min = Math.min(0, Math.floor(Math.min(...alla) / steg) * steg);
+    const pos = (x) => ((x - min) / (max - min)) * 100;
+    const FARG = ['var(--bla)', 'var(--d-overtid)', 'var(--d-intervention)'];
+    const yta = el('div', { class: 'staplar grupp' });
+    const rader2 = [];
+    data.forEach((d) => {
+      const spar = el('div', { class: 'grupp-spar' }, el('div', { class: 'stapel-noll', style: `left: calc(${pos(0)}% - 1px)` }));
+      d.v.forEach((x, k) => {
+        const rad = el('div', { class: 'grupp-rad', 'data-serie': String(k) });
+        if (Number.isNaN(x)) rad.append(el('span', { class: 'stapel-varde saknas', style: `left: calc(${pos(0)}% + 6px)`, text: 'ingen uppgift' }));
+        else rad.append(el('div', { class: 'stapel', style: `left: ${pos(Math.min(0, x))}%; width: ${Math.abs(pos(x) - pos(0))}%; --s: ${FARG[k]}` }),
+          el('div', { class: 'stapel-varde', style: `left: calc(${pos(Math.max(0, x))}% + 6px)`, text: tal(x) }));
+        rad.setAttribute('aria-label', `${d.namn}, ${serier[k]}: ${Number.isNaN(x) ? 'ingen uppgift' : tal(x)}`);
+        spar.append(rad); rader2.push(rad);
+      });
+      yta.append(el('div', { class: 'stapel-namn', text: d.namn }), spar);
+    });
+    const skala = el('div', { class: 'stapel-skala', 'aria-hidden': 'true' });
+    for (let x = min; x <= max + 1e-9; x += steg) skala.append(el('span', { style: `left: ${pos(x)}%`, text: tal(x, 1) }));
+    yta.append(el('div'), skala);
+    const forkl = el('div', { class: 'diagram-val', role: 'group', 'aria-label': 'Markera en serie' });
+    let fokus = -1;
+    const knappar = serier.map((s, k) => {
+      const b = el('button', { type: 'button', 'aria-pressed': 'false', class: 'serie-knapp', style: `--s: ${FARG[k]}`, text: s });
+      b.addEventListener('click', () => {
+        fokus = fokus === k ? -1 : k;
+        knappar.forEach((x, j) => x.setAttribute('aria-pressed', String(j === fokus)));
+        rader2.forEach((r) => { r.style.opacity = fokus === -1 || +r.dataset.serie === fokus ? '1' : '.25'; });
+      });
+      forkl.append(b);
       return b;
     });
-    function valj(i) {
-      flikar.forEach((b, j) => { b.setAttribute('aria-selected', String(i === j)); b.tabIndex = i === j ? 0 : -1; });
-      paneler.forEach((p, j) => { p.hidden = i !== j; });
+    t.before(forkl, yta);
+    tabellSist(fig, t);
+  });
+
+  /* ---------- Fasfigur: Zimmermans modell med pilar mellan faserna ---------- */
+  document.querySelectorAll('.fasfigur').forEach((fig) => {
+    const faser = [...fig.querySelectorAll(':scope > .faser > .fas')];
+    const omr = fig.querySelector('.faser');
+    const rot = svg('svg', { class: 'vag-svg', 'aria-hidden': 'true' });
+    omr.prepend(rot);
+    const id = 'pil' + (++pilNr);
+    function rita() {
+      const W = omr.clientWidth, H = omr.clientHeight;
+      rot.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      rot.replaceChildren();
+      pilspets(rot, 'var(--text-2)', id, 14);
+      const [P, G, R] = faser;
+      const linje = (d) => rot.append(svg('path', { d, fill: 'none', stroke: 'var(--text-2)', 'stroke-width': '2.5', 'marker-end': `url(#${id})` }));
+      if (W < 640) {
+        const [a1, b1] = kant(P, omr, 'mn'), [, b2] = kant(G, omr, 'mo');
+        linje(`M${a1},${b1 + 4} L${a1},${b2 - 6}`);
+        const [, c1] = kant(G, omr, 'mn'), [, c2] = kant(R, omr, 'mo');
+        linje(`M${a1},${c1 + 4} L${a1},${c2 - 6}`);
+        const [rx, ry] = kant(R, omr, 'hm'), [px, py] = kant(P, omr, 'hm');
+        linje(`M${rx + 2},${ry} C${W - 2},${ry} ${W - 2},${py} ${px + 8},${py}`);
+      } else {
+        const [gl, gb] = kant(G, omr, 'vn'), [gr] = kant(G, omr, 'hn');
+        const klamp = (x) => Math.min(Math.max(x, gl + 24), gr - 24);
+        const [px, py] = kant(P, omr, 'mo'), [rx, ry] = kant(R, omr, 'mo');
+        const x1 = klamp(px), x2 = klamp(rx);
+        linje(`M${x1},${py - 4} L${x1},${gb + 8}`);
+        linje(`M${x2},${gb + 4} L${x2},${ry - 8}`);
+        const [sx, sy] = kant(R, omr, 'vm'), [qx] = kant(P, omr, 'hm');
+        linje(`M${sx - 4},${sy} L${qx + 8},${sy}`);
+      }
     }
-    pilar(flikar, valj);
-    lista.replaceWith(rad, ...paneler);
-    valj(0);
+    const knapp = fig.querySelector('.fas-vaxla');
+    if (knapp) knapp.addEventListener('click', () => {
+      const pa = fig.classList.toggle('visa-exempel');
+      knapp.setAttribute('aria-pressed', String(pa));
+      requestAnimationFrame(rita);
+    });
+    ritaOm(omr, rita);
   });
 
   /* ---------- Cykel och triangel: noder i en ring med pilar ----------
@@ -301,11 +418,22 @@
     const yta = el('div', { class: 'cykel', 'data-n': String(n) });
     const rot = svg('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true', class: 'cykel-svg' });
     const mid = 'pil' + (++pilNr);
-    pilspets(rot, 'var(--text-2)', mid, 4.5);
+    pilspets(rot, dubbel ? 'var(--d-intervention)' : 'var(--text-2)', mid, 4.5);
     const R = 34, start = -90;
     const vinkel = (i) => (start + (360 / n) * i) * Math.PI / 180;
     const glapp = (n === 3 ? 34 : 26) * Math.PI / 180;
+    if (dubbel) yta.dataset.form = 'triangel';
     for (let i = 0; i < n; i++) {
+      if (dubbel) {
+        // Triangel: raka, streckade dubbelpilar mellan hörnen
+        const xa = 50 + R * Math.cos(vinkel(i)), ya = 50 + R * Math.sin(vinkel(i));
+        const xb = 50 + R * Math.cos(vinkel(i + 1)), yb = 50 + R * Math.sin(vinkel(i + 1));
+        const f0 = 0.3, f1 = 0.7;
+        rot.append(svg('path', { d: `M${xa + (xb - xa) * f0},${ya + (yb - ya) * f0} L${xa + (xb - xa) * f1},${ya + (yb - ya) * f1}`,
+          fill: 'none', stroke: 'var(--d-intervention)', 'stroke-width': '.9', 'stroke-dasharray': '2.2 1.4',
+          'marker-start': `url(#${mid})`, 'marker-end': `url(#${mid})` }));
+        continue;
+      }
       const a1 = vinkel(i) + glapp, a2 = vinkel(i + 1) - glapp;
       const x1 = 50 + R * Math.cos(a1), y1 = 50 + R * Math.sin(a1), x2 = 50 + R * Math.cos(a2), y2 = 50 + R * Math.sin(a2);
       const attr = { d: `M${x1},${y1} A${R},${R} 0 0 1 ${x2},${y2}`, fill: 'none', stroke: 'var(--text-2)', 'stroke-width': '.8', 'marker-end': `url(#${mid})` };
@@ -333,6 +461,61 @@
     pilar(knappar, valj);
     t.before(yta, detalj);
     tabellSist(fig, t);
+    valj(0);
+  });
+
+  /* ---------- Flöde: steg i rad med returpil till början ----------
+     Tabell: Steg | Engelska | Innehåll (punkter avskilda med semikolon). data-retur anger returpilens text. */
+  document.querySelectorAll('.figur[data-typ="flode"]').forEach((fig) => {
+    const { t, rader } = lasTabell(fig);
+    const noder = rader.map((c) => ({ namn: c[0].text, eng: c[1].text, punkter: c[2].html.split(/;\s*/).filter(Boolean) }));
+    const yta = el('div', { class: 'flode' });
+    const rot = svg('svg', { class: 'vag-svg', 'aria-hidden': 'true' });
+    yta.append(rot);
+    const detalj = el('div', { class: 'kont-detalj', 'aria-live': 'polite' });
+    const knappar = noder.map((nod, i) => {
+      const b = el('button', { type: 'button', class: 'flode-nod', 'aria-pressed': 'false' },
+        el('small', { text: `Steg ${i + 1}` }), el('span', { text: nod.namn }));
+      b.addEventListener('click', () => valj(i));
+      yta.append(b);
+      return b;
+    });
+    const retur = el('div', { class: 'flode-retur', text: fig.dataset.retur || '' });
+    yta.append(retur);
+    const id = 'pil' + (++pilNr);
+    function rita() {
+      const W = yta.clientWidth, H = yta.clientHeight;
+      rot.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      rot.replaceChildren();
+      pilspets(rot, 'var(--bla)', id, 14);
+      const linje = (d, streck) => rot.append(svg('path', { d, fill: 'none', stroke: 'var(--bla)', 'stroke-width': '2.5', 'stroke-dasharray': streck ? '6 5' : '', 'marker-end': `url(#${id})` }));
+      const smal = getComputedStyle(yta).flexDirection === 'column';
+      const forsta = knappar[0], sista = knappar[knappar.length - 1];
+      for (let i = 0; i < knappar.length - 1; i++) {
+        if (smal) { const [x1, y1] = kant(knappar[i], yta, 'mn'), [, y2] = kant(knappar[i + 1], yta, 'mo'); linje(`M${x1},${y1 + 3} L${x1},${y2 - 6}`); }
+        else { const [x1, y1] = kant(knappar[i], yta, 'hm'), [x2] = kant(knappar[i + 1], yta, 'vm'); linje(`M${x1 + 3},${y1} L${x2 - 6},${y1}`); }
+      }
+      if (smal) {
+        const [x1, y1] = kant(sista, yta, 'hm'), [, y2] = kant(forsta, yta, 'hm');
+        linje(`M${x1 + 3},${y1} H${W - 8} V${y2} H${x1 + 10}`, true);
+      } else {
+        const [x1, y1] = kant(sista, yta, 'mn'), [x2] = kant(forsta, yta, 'mn');
+        const yb = H - 6;
+        linje(`M${x1},${y1 + 3} V${yb} H${x2} V${y1 + 10}`, true);
+      }
+    }
+    function valj(i) {
+      const nod = noder[i];
+      knappar.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
+      const ul = el('ul');
+      nod.punkter.forEach((p) => ul.append(el('li', { html: p[0] === '<' ? p : p[0].toUpperCase() + p.slice(1) })));
+      detalj.style.setProperty('--k', 'var(--bla)');
+      detalj.replaceChildren(el('h4', {}, nod.namn + ' ', el('span', { class: 'eng', text: nod.eng ? `(${nod.eng})` : '' })), ul);
+    }
+    pilar(knappar, valj);
+    t.before(yta, detalj);
+    tabellSist(fig, t);
+    ritaOm(yta, rita);
     valj(0);
   });
 
@@ -396,19 +579,6 @@
     tabellSist(fig, t);
     valj(0);
   });
-
-  // Ritar om pilar mellan element när storleken ändras.
-  const ritaOm = (behallare, rita) => {
-    const kor = () => requestAnimationFrame(rita);
-    if ('ResizeObserver' in window) new ResizeObserver(kor).observe(behallare); else window.addEventListener('resize', kor);
-    kor();
-  };
-  const kant = (rut, bas, sida) => {
-    const r = rut.getBoundingClientRect(), b = bas.getBoundingClientRect();
-    const x = { v: r.left - b.left, h: r.right - b.left, m: (r.left + r.right) / 2 - b.left }[sida[0]];
-    const y = { o: r.top - b.top, n: r.bottom - b.top, m: (r.top + r.bottom) / 2 - b.top }[sida[1]];
-    return [x, y];
-  };
 
   /* ---------- Vägmodell: flera källor mot ett utfall ----------
      Tabell: Källa | β | KI | Förklaring.  data-mal anger utfallet. */

@@ -294,22 +294,25 @@ footer.fot div { max-width: 1180px; margin: 0 auto; padding: 18px 16px 28px; }
 }
 .fordjupning .doi { display: block; }
 
-/* ---------- Flikar ---------- */
-.flik-rad { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 2px solid var(--linje); margin-bottom: 14px; }
-.flik-rad button {
-  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; padding: 8px 14px; margin-bottom: -2px;
-  border: 0; border-bottom: 4px solid transparent; background: none; color: var(--text-2);
+/* ---------- Kolumner: jämförelse där allt syns samtidigt ---------- */
+.kolumner { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); column-gap: 14px; row-gap: 0; }
+.kolumn {
+  display: grid; grid-template-rows: subgrid; align-content: start;
+  background: var(--bg); border-radius: var(--radie); border-top: 5px solid var(--gul); padding: 4px 16px 14px; margin-bottom: 12px;
 }
-.flik-rad button:hover { color: var(--text); border-bottom-color: var(--linje); }
-.flik-rad button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--gul); }
-.flik-panel > :first-child { margin-top: 0; }
-.flik-panel > :last-child { margin-bottom: 0; }
-.flik-panel:focus-visible { outline: 2px solid var(--bla); outline-offset: 4px; }
-.kedja { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; }
-.kedja-steg { padding: 8px 12px; border-radius: var(--radie); background: var(--bg); border: 1px solid var(--linje); font-size: 15px; line-height: 1.3; }
-.kedja-pil { color: var(--text-2); font-weight: 700; }
-.flik-panel[data-ton="ljus"] .kedja-steg { background: var(--autonom-yta); border-color: transparent; }
-.flik-panel[data-ton="mork"] .kedja-steg { background: var(--kontroll-yta); border-color: transparent; }
+.kolumn > * { margin: 8px 0 0; max-width: none; font-size: 16px; }
+.kolumn > .kolumn-rubrik { font-size: 18px; margin-top: 10px; }
+.kolumn[data-ton="ljus"] { border-top-color: var(--autonom); }
+.kolumn[data-ton="mork"] { border-top-color: var(--kontroll); }
+.kolumn[data-ton="sdt"] { border-top-color: var(--autonom); }
+.kolumn[data-ton="sct"] { border-top-color: var(--bla); }
+.kolumn[data-ton="srl"] { border-top-color: var(--d-overtid); }
+.kedja { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 10px 0 0; }
+.kedja-steg { padding: 7px 12px; border-radius: var(--radie); background: var(--yta); border: 1px solid var(--linje); font-size: 15px; line-height: 1.3; }
+.kedja-pil { color: var(--text-2); font-weight: 700; padding-left: 14px; }
+.kolumn[data-ton="ljus"] .kedja-steg { background: var(--autonom-yta); border-color: transparent; }
+.kolumn[data-ton="mork"] .kedja-steg { background: var(--kontroll-yta); border-color: transparent; }
+@media (max-width: 700px) { .kolumner { grid-template-columns: 1fr; } }
 
 /* ---------- Cykel och triangel ---------- */
 .cykel { position: relative; width: min(100%, 460px); aspect-ratio: 1; margin: 0 auto; }
@@ -416,3 +419,126 @@ footer.fot div { max-width: 1180px; margin: 0 auto; padding: 18px 16px 28px; }
   .bf-koppling::before { content: "↑"; }
 }
 @media (min-width: 701px) { .bf-sida { align-self: end; margin-bottom: 26px; } }
+
+/* ---------- Grupperade staplar ---------- */
+.grupp-spar { position: relative; display: grid; gap: 3px; padding: 5px 0; }
+.grupp-rad { position: relative; height: 18px; transition: opacity .2s; }
+.grupp-rad .stapel { top: 1px; height: 16px; }
+.grupp-rad .stapel-varde { top: 0; font-size: 13px; }
+.serie-knapp::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 7px; background: var(--s); vertical-align: -1px; }
+.diagram-val .serie-knapp[aria-pressed="true"] { background: var(--bg); border-color: var(--text-2); color: var(--text); font-weight: 600; }
+
+/* ---------- Begreppsfält (SRL:s delar) ---------- */
+.falt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1fr); grid-template-rows: auto auto; gap: 12px; align-items: stretch; }
+.falt > .falt-mitt { grid-column: 2; grid-row: 1 / 3; align-self: center; text-align: center; padding: 16px 10px; border-radius: 10px; background: var(--gul); color: var(--pa-gul); }
+.falt > .falt-mitt p { margin: 0; max-width: none; }
+.falt > .falt-del { padding: 12px 14px; border-radius: var(--radie); background: var(--bg); border: 1px solid var(--linje); font-size: 15px; }
+.falt > .falt-del p { margin: 0 0 4px; max-width: none; }
+.falt > :nth-child(1) { grid-column: 1; grid-row: 1; }
+.falt > :nth-child(2) { grid-column: 3; grid-row: 1; }
+.falt > :nth-child(4) { grid-column: 1; grid-row: 2; }
+.falt > :nth-child(5) { grid-column: 3; grid-row: 2; }
+@media (max-width: 640px) {
+  .falt { grid-template-columns: 1fr; }
+  .falt > :nth-child(n) { grid-column: 1; grid-row: auto; }
+}
+
+/* ---------- Fasfigur (Zimmerman) ---------- */
+.fasfigur { padding: 18px 20px 14px; margin: 18px 0; background: var(--yta); border: 1px solid var(--linje); border-radius: var(--radie); box-shadow: var(--skugga); }
+.fas-vaxla { font: inherit; font-size: 15px; cursor: pointer; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--linje); background: var(--yta); color: var(--text); margin-bottom: 14px; }
+.fas-vaxla[aria-pressed="true"] { background: var(--bla); border-color: var(--bla); color: #fff; }
+.faser { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 90px; row-gap: 56px; }
+.fas { position: relative; z-index: 1; padding: 12px 14px; border-radius: 10px; background: var(--yta); border: 2px solid var(--bla); font-size: 15px; }
+.fas:nth-of-type(2) { grid-column: 1 / 3; grid-row: 1; justify-self: center; width: min(100%, 62%); }
+.fas:nth-of-type(1) { grid-column: 1; grid-row: 2; border-color: var(--gul); border-width: 3px; }
+.fas:nth-of-type(3) { grid-column: 2; grid-row: 2; }
+.fas h4 { font-size: 18px; margin: 0; }
+.fas .fas-eng { color: var(--text-2); font-style: italic; font-size: 14px; }
+.fas > p { margin: 0; max-width: none; }
+.gren { margin-top: 10px; }
+.gren p { margin: 0; max-width: none; }
+.gren ul { margin: 4px 0 0; padding-left: 1.1em; font-size: 14.5px; }
+.gren li + li { margin-top: 1px; }
+.fas-exempel { display: none; margin-top: 10px !important; padding: 8px 10px; border-radius: var(--radie); background: var(--gul-mjuk); font-size: 14.5px; }
+.visa-exempel .fas-exempel { display: block; }
+@media (max-width: 639px) {
+  .faser { grid-template-columns: 1fr; row-gap: 40px; padding-right: 26px; }
+  .fas:nth-of-type(n) { grid-column: 1; width: auto; justify-self: stretch; }
+  .fas:nth-of-type(1) { grid-row: 1; } .fas:nth-of-type(2) { grid-row: 2; } .fas:nth-of-type(3) { grid-row: 3; }
+}
+
+/* ---------- Trappa (metakognitiv kunskap) ---------- */
+.trappa { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
+.trappa > .steg { padding: 12px 14px; border-radius: var(--radie) var(--radie) 0 0; background: var(--bla-yta); border-bottom: 4px solid var(--bla); font-size: 15px; }
+.trappa > .steg p { margin: 0 0 4px; max-width: none; }
+.trappa > .steg:nth-of-type(1) { min-height: 120px; }
+.trappa > .steg:nth-of-type(2) { min-height: 165px; }
+.trappa > .steg:nth-of-type(3) { min-height: 210px; background: var(--gul-mjuk); border-bottom-color: var(--gul); }
+.trappa-axel { grid-column: 1 / -1; font-size: 13px; color: var(--text-2); display: flex; justify-content: space-between; }
+@media (max-width: 560px) { .trappa { grid-template-columns: 1fr; } .trappa > .steg:nth-of-type(n) { min-height: 0; } }
+
+/* ---------- Studiedesign ---------- */
+.studie { display: grid; grid-template-columns: minmax(0, .8fr) 28px minmax(0, 1.4fr) 28px minmax(0, 1.2fr); align-items: center; gap: 6px 4px; padding: 14px 0; border-top: 1px solid var(--linje); }
+.studie:first-of-type { border-top: 0; padding-top: 4px; }
+.studie > p { margin: 0; max-width: none; }
+.studie > p:first-child { grid-column: 1 / -1; }
+.studie > p:not(:first-child) { text-align: center; }
+.studie-rubrik { font-weight: 700; font-size: 16px; }
+.studie-rubrik .amne { display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 999px; background: var(--gul); font-size: 13px; }
+.studie > div > p, .studie ul { margin: 0; max-width: none; }
+.studie ul { padding-left: 1.1em; }
+.studie .urval { padding: 10px; border-radius: var(--radie); border: 2px solid var(--text-2); background: var(--yta); text-align: center; font-size: 14.5px; }
+.studie .urval::after { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--text-2); }
+.studie[data-fordelning="slumpad"] .urval::after { content: "Slumpad fördelning"; }
+.studie[data-fordelning="ej slumpad"] .urval::after { content: "Ej slumpad fördelning"; }
+.studie .pil { text-align: center; font-size: 22px; color: var(--text-2); }
+.studie .villkor ul { list-style: none; padding: 0; display: grid; gap: 5px; }
+.studie .villkor li { margin: 0; padding: 6px 10px; border-radius: var(--radie); background: var(--bg); border: 1px solid var(--linje); font-size: 14.5px; }
+.studie .villkor li:has(strong) { background: var(--gul-mjuk); border-color: var(--gul); }
+.studie .utfall { padding: 8px 10px; border-radius: var(--radie); background: var(--bg); font-size: 14.5px; }
+.studie .utfall > p:first-child { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); }
+.studie-grans { grid-column: 1 / -1; font-size: 14px; color: var(--text-2); }
+.studie-grans p { margin: 0; max-width: none; }
+@media (max-width: 640px) {
+  .studie { grid-template-columns: 1fr; }
+  .studie .pil { transform: rotate(90deg); line-height: 1; }
+}
+
+/* Påståenden som markerar en kolumn */
+.signaler-ruta { margin-bottom: 14px; }
+.signaler-rubrik { margin: 0 0 8px; font-weight: 600; font-size: 16px; }
+.signaler-rad { display: flex; flex-wrap: wrap; gap: 6px; }
+.signaler-rad button {
+  font: inherit; font-size: 14.5px; line-height: 1.3; text-align: left; cursor: pointer;
+  padding: 7px 12px; border-radius: 999px; border: 1px solid var(--linje); background: var(--yta); color: var(--text);
+}
+.signaler-rad button:hover { border-color: var(--bla); }
+.signaler-rad button[aria-pressed="true"] { background: var(--bla); border-color: var(--bla); color: #fff; }
+.kolumn { transition: opacity .2s, box-shadow .2s; }
+.kolumner.fokus .kolumn:not(.aktiv) { opacity: .4; }
+.kolumn.aktiv { box-shadow: 0 0 0 3px var(--gul); background: var(--gul-mjuk); }
+@media (prefers-reduced-motion: reduce) { .kolumn { transition: none; } }
+
+.panelfigur { padding: 18px 20px 14px; margin: 18px 0; background: var(--yta); border: 1px solid var(--linje); border-radius: var(--radie); box-shadow: var(--skugga); }
+.panelfigur > .figur-kalla { margin-top: 14px; }
+
+/* Triangel (SCT): runda noder i en egen färg */
+.cykel[data-form="triangel"] .cykel-nod { border-radius: 999px; border-color: var(--d-intervention); min-height: 56px; }
+.cykel[data-form="triangel"] .cykel-nod:hover { background: #e0f1f0; }
+.cykel[data-form="triangel"] .cykel-nod[aria-pressed="true"] { background: var(--d-intervention); color: #fff; }
+
+/* Flöde med returpil */
+.flode { position: relative; display: flex; gap: 54px; padding-bottom: 52px; }
+.flode-nod {
+  position: relative; z-index: 1; flex: 1; font: inherit; font-size: 15px; font-weight: 600; line-height: 1.3; text-align: left; cursor: pointer;
+  padding: 10px 14px; border-radius: 4px; border: 0; border-left: 6px solid var(--bla); background: var(--bla-yta); color: var(--text);
+}
+.flode-nod small { display: block; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2); margin-bottom: 2px; }
+.flode-nod:hover { box-shadow: inset 0 0 0 2px var(--bla); }
+.flode-nod[aria-pressed="true"] { background: var(--bla); color: #fff; }
+.flode-nod[aria-pressed="true"] small { color: #fff; }
+.flode-retur { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 0 8px; background: var(--yta); font-size: 13px; font-weight: 600; color: var(--bla-text); z-index: 1; }
+@media (max-width: 640px) {
+  .flode { flex-direction: column; gap: 34px; padding: 0 44px 0 0; }
+  .flode-retur { left: auto; right: 0; bottom: 50%; transform: rotate(90deg) translateX(50%); transform-origin: right bottom; }
+}
