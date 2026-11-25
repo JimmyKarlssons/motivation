@@ -542,3 +542,53 @@ footer.fot div { max-width: 1180px; margin: 0 auto; padding: 18px 16px 28px; }
   .flode { flex-direction: column; gap: 34px; padding: 0 44px 0 0; }
   .flode-retur { left: auto; right: 0; bottom: 50%; transform: rotate(90deg) translateX(50%); transform-origin: right bottom; }
 }
+
+/* ---------- Modulkarta ---------- */
+.karta { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+.karta-svg { width: 100%; height: auto; display: block; }
+.karta-del { cursor: pointer; outline: none; }
+.karta-cirkel { fill: var(--f); fill-opacity: .13; stroke: var(--f); stroke-width: 3; transition: fill-opacity .2s, stroke-width .2s; }
+.karta-del:hover .karta-cirkel, .karta-del:focus-visible .karta-cirkel { fill-opacity: .24; }
+.karta-del[aria-pressed="true"] .karta-cirkel { fill-opacity: .3; stroke-width: 5; }
+.karta-namn { font-size: 30px; font-weight: 800; fill: var(--text); pointer-events: none; }
+.karta-nr { font-size: 18px; font-weight: 600; fill: var(--text-2); pointer-events: none; }
+.karta-mitt { fill: var(--gul); stroke: #b08f00; stroke-width: 2; }
+.karta-del[aria-pressed="true"] .karta-mitt { stroke-width: 5; }
+.karta-mitttext { font-size: 17px; font-weight: 700; fill: var(--pa-gul); pointer-events: none; }
+.karta-fordj { fill: var(--yta); stroke: var(--f); stroke-width: 2.5; stroke-dasharray: 7 5; }
+.karta-del:hover .karta-fordj, .karta-del[aria-pressed="true"] .karta-fordj { fill: #e0f1f0; }
+.karta-del[aria-pressed="true"] .karta-fordj { stroke-width: 4; }
+.karta-fordjtext { font-size: 18px; font-weight: 700; fill: var(--d-intervention); pointer-events: none; }
+.karta-ram { fill: none; stroke: var(--linje); stroke-width: 3; stroke-dasharray: 10 7; pointer-events: stroke; }
+.karta-del:hover .karta-ram, .karta-del[aria-pressed="true"] .karta-ram { stroke: var(--text-2); }
+.karta-ramtext { font-size: 18px; font-weight: 600; fill: var(--text-2); }
+.karta-del:focus-visible .karta-ram, .karta-del:focus-visible .karta-mitt { stroke-width: 5; }
+.karta-forkl { display: grid; gap: 6px; }
+.karta-forkl button {
+  font: inherit; text-align: left; cursor: pointer; padding: 8px 12px 8px 14px; border-radius: var(--radie);
+  border: 1px solid var(--linje); border-left: 6px solid var(--f); background: var(--yta); color: var(--text); line-height: 1.3;
+}
+.karta-forkl button strong { display: block; font-size: 15px; }
+.karta-forkl button span { font-size: 14.5px; color: var(--text-2); }
+.karta-forkl button:hover { background: var(--bg); }
+.karta-forkl button[aria-pressed="true"] { background: var(--bg); box-shadow: inset 0 0 0 2px var(--f); }
+.karta-detalj { margin-top: 16px; }
+.karta-detalj p { margin: 6px 0 0; }
+@media (max-width: 760px) { .karta { grid-template-columns: 1fr; } }
+
+/* ---------- Klickinstruktion ---------- */
+.klick-tips { display: flex; align-items: center; gap: 8px; margin: 0 0 14px !important; padding: 7px 12px; border-radius: var(--radie); background: var(--bla-yta); color: var(--bla-text); font-size: 15px; font-weight: 600; max-width: none !important; }
+.klick-tips svg { flex: none; }
+@keyframes puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(45, 131, 179, 0); } 50% { box-shadow: 0 0 0 5px rgba(45, 131, 179, .28); } }
+@keyframes puls-svg { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.klickbar:not(.anvand) .cykel-nod[aria-pressed="false"],
+.klickbar:not(.anvand) .flode-nod[aria-pressed="false"],
+.klickbar:not(.anvand) .vag-kalla[aria-pressed="false"],
+.klickbar:not(.anvand) .kont-knapp[aria-pressed="false"],
+.klickbar:not(.anvand) .fas-vaxla,
+.klickbar:not(.anvand) .diagram-val button[aria-pressed="false"],
+.klickbar:not(.anvand) .iv-namn[aria-pressed="false"],
+.klickbar:not(.anvand) .karta-forkl button { animation: puls 2.2s ease-in-out 3; }
+.klickbar:not(.anvand) .cirkel-del[aria-pressed="false"] path,
+.klickbar:not(.anvand) .karta-del[aria-pressed="false"] .karta-cirkel { animation: puls-svg 2.2s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .klickbar * { animation: none !important; } }
