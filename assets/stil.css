@@ -381,8 +381,6 @@ footer.fot div { max-width: 1180px; margin: 0 auto; padding: 18px 16px 28px; }
 
 /* Länkar i flikar till avsnitt */
 .till-avsnitt { display: inline-block; margin-top: 4px; font-weight: 600; }
-.quiz-status > span { flex: 1; }
-.quiz-status button[hidden] { display: none; }
 
 /* Smala skärmar: vägmodell och cirkel */
 @media (max-width: 560px) {
@@ -613,3 +611,21 @@ footer.fot div { max-width: 1180px; margin: 0 auto; padding: 18px 16px 28px; }
 .portal a.portal-nr:hover { background: var(--bla); }
 .portal-mini { max-width: 300px; display: block; margin-left: auto; margin-right: auto; }
 .fot-tid { color: var(--text-2); }
+
+/* ---------- Quiz: en fråga åt gången ---------- */
+.quiz { gap: 10px; max-width: 760px; }
+.quiz-huvud { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; font-weight: 600; font-size: 15px; }
+.quiz-huvud[hidden] { display: none; }
+.quiz-poang { color: var(--text-2); }
+.quiz-framsteg { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--linje); overflow: hidden; }
+.quiz-framsteg > div { height: 100%; width: 0; background: var(--bla); transition: width .3s ease; }
+.quiz-fraga { padding: 20px 22px; }
+.quiz-fraga:focus { outline: none; }
+.quiz-fraga h3 { font-size: 18px; margin: 0 0 14px; }
+.quiz-svar p { margin: 14px 0 0; }
+.quiz-nasta, .quiz-knappar button { font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 14px; padding: 8px 18px; border-radius: 999px; border: 1px solid var(--bla); background: var(--bla); color: #fff; }
+.quiz-knappar { display: flex; flex-wrap: wrap; gap: 8px; }
+.quiz-knappar button:not(.quiz-nasta) { background: var(--yta); color: var(--text); border-color: var(--linje); }
+.quiz-etikett { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.quiz-resultat { margin: 4px 0 6px; font-size: 28px; font-weight: 800; }
+@media (prefers-reduced-motion: reduce) { .quiz-framsteg > div { transition: none; } }

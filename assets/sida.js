@@ -164,56 +164,85 @@
     visa(0);
   });
 
-  /* ---------- Quiz ---------- */
+  /* ---------- Quiz: en fråga åt gången ---------- */
   document.querySelectorAll('.quiz').forEach((ruta) => {
     const banken = JSON.parse(ruta.querySelector('script').textContent);
     const antal = ruta.dataset.antal ? +ruta.dataset.antal : 0;
-    const status = el('div', { class: 'quiz-status' });
-    const poang = el('span', { 'aria-live': 'polite' });
-    const om = el('button', { type: 'button', text: antal ? 'Nya frågor' : 'Börja om' });
-    const ovaFel = el('button', { type: 'button', text: 'Gör om felsvaren', hidden: '' });
-    status.append(poang, ovaFel, om);
-    let ratt = 0, besvarade = 0, fragor = [], fel = [];
-    const uppdatera = () => {
-      poang.textContent = `${ratt} rätt av ${besvarade} besvarade (${fragor.length} frågor)`;
-      ovaFel.hidden = !(besvarade === fragor.length && fel.length);
-    };
     const blanda = (lista) => {
       const a = [...lista];
       for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
       return a;
     };
+    const huvud = el('div', { class: 'quiz-huvud' });
+    const lage = el('span', { class: 'quiz-lage', 'aria-live': 'polite' });
+    const poang = el('span', { class: 'quiz-poang' });
+    const stapel = el('div', { class: 'quiz-framsteg', role: 'progressbar', 'aria-valuemin': '0' }, el('div'));
+    huvud.append(lage, poang, stapel);
+    const kort = el('div', { class: 'quiz-fraga', tabindex: '-1' });
+    ruta.append(huvud, kort);
+    let fragor = [], nr = 0, ratt = 0, fel = [];
 
-    function bygg(urval) {
-      ratt = 0; besvarade = 0; fel = [];
+    function starta(urval) {
       fragor = urval || (antal ? blanda(banken).slice(0, antal) : banken);
-      ruta.querySelectorAll('.quiz-fraga').forEach((f) => f.remove());
-      fragor.forEach((q, i) => {
-        const svar = el('p', { class: 'quiz-svar', 'aria-live': 'polite' });
-        const alt = el('div', { class: 'quiz-alt' });
-        q.options.forEach((o) => {
-          const b = el('button', { type: 'button', text: o });
-          b.addEventListener('click', () => {
-            const ok = o === q.correct;
-            [...alt.children].forEach((x) => {
-              x.disabled = true;
-              if (x.textContent === q.correct) x.classList.add('ratt');
-            });
-            if (!ok) b.classList.add('fel');
-            besvarade++; if (ok) ratt++; else fel.push(q);
-            svar.replaceChildren(el('strong', { class: ok ? 'ratt' : 'fel', text: ok ? 'Rätt. ' : `Inte rätt. Rätt svar: ${q.correct}. ` }), q.explanation || '');
-            uppdatera();
-          });
-          alt.append(b);
-        });
-        ruta.append(el('div', { class: 'quiz-fraga' }, el('h3', {}, el('span', { text: `${i + 1}.` }), q.text), alt, svar));
-      });
-      uppdatera();
+      nr = 0; ratt = 0; fel = [];
+      huvud.hidden = false;
+      visa(false);
     }
-    om.addEventListener('click', () => { bygg(); status.scrollIntoView({ block: 'nearest' }); });
-    ovaFel.addEventListener('click', () => { bygg([...fel]); status.scrollIntoView({ block: 'nearest' }); });
-    ruta.prepend(status);
-    bygg();
+    function framsteg(besvarad) {
+      const klara = nr + (besvarad ? 1 : 0);
+      lage.textContent = `Fråga ${nr + 1} av ${fragor.length}`;
+      poang.textContent = `${ratt} rätt`;
+      stapel.setAttribute('aria-valuemax', String(fragor.length));
+      stapel.setAttribute('aria-valuenow', String(klara));
+      stapel.firstChild.style.width = `${(klara / fragor.length) * 100}%`;
+    }
+    function visa(fokus = true) {
+      const q = fragor[nr];
+      framsteg(false);
+      const svar = el('div', { class: 'quiz-svar', 'aria-live': 'polite' });
+      const alt = el('div', { class: 'quiz-alt' });
+      blanda(q.options).forEach((o) => {
+        const b = el('button', { type: 'button', text: o });
+        b.addEventListener('click', () => {
+          const ok = o === q.correct;
+          [...alt.children].forEach((x) => { x.disabled = true; if (x.textContent === q.correct) x.classList.add('ratt'); });
+          if (ok) ratt++; else { b.classList.add('fel'); fel.push(q); }
+          framsteg(true);
+          const sist = nr === fragor.length - 1;
+          const vidare = el('button', { type: 'button', class: 'quiz-nasta', text: sist ? 'Visa resultat' : 'Nästa fråga' });
+          vidare.addEventListener('click', () => { if (sist) resultat(); else { nr++; visa(); } });
+          svar.replaceChildren(
+            el('p', {}, el('strong', { class: ok ? 'ratt' : 'fel', text: ok ? 'Rätt. ' : `Inte rätt. Rätt svar: ${q.correct}. ` }), q.explanation || ''),
+            vidare);
+          vidare.focus({ preventScroll: true });
+        });
+        alt.append(b);
+      });
+      kort.replaceChildren(el('h3', { text: q.text }), alt, svar);
+      if (fokus) { kort.focus({ preventScroll: true }); kort.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    }
+    function resultat() {
+      huvud.hidden = true;
+      const knappar = el('div', { class: 'quiz-knappar' });
+      const nytt = el('button', { type: 'button', class: 'quiz-nasta', text: antal ? 'Nya frågor' : 'Gör om quizet' });
+      nytt.addEventListener('click', () => starta());
+      knappar.append(nytt);
+      if (fel.length) {
+        const omFel = el('button', { type: 'button', text: `Gör om felsvaren (${fel.length})` });
+        const lista = [...fel];
+        omFel.addEventListener('click', () => starta(lista));
+        knappar.append(omFel);
+      }
+      const andel = ratt / fragor.length;
+      kort.replaceChildren(
+        el('p', { class: 'quiz-etikett', text: 'Resultat' }),
+        el('p', { class: 'quiz-resultat', text: `${ratt} av ${fragor.length} rätt` }),
+        el('p', { text: andel === 1 ? 'Alla svar var rätt.' : fel.length === 1 ? 'En fråga besvarades fel. Du kan göra om den.' : `${fel.length} frågor besvarades fel. Du kan göra om dem.` }),
+        knappar);
+      kort.focus({ preventScroll: true });
+      kort.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    starta();
   });
 
   /* ================= Nya figurtyper ================= */
