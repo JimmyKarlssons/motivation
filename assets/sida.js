@@ -519,66 +519,15 @@
     valj(0);
   });
 
-  /* ---------- Modulkarta: tre överlappande cirklar, fördjupning och ram ----------
-     Lista i ordningen: SDT, SCT, SRL, överlapp, fördjupning, ram. Varje punkt: **Namn** [fråga]{.fraga} text … */
-  document.querySelectorAll('.figur[data-typ="modulkarta"]').forEach((fig) => {
-    const lista = fig.querySelector('ul');
-    const delar = [...lista.children].map((li) => {
-      const namn = li.querySelector('strong').textContent.trim();
-      li.querySelector('strong').remove();
-      const fr = li.querySelector('.fraga'); const fraga = fr ? fr.textContent.trim() : ''; if (fr) fr.remove();
-      return { namn, fraga, html: li.innerHTML.trim() };
+  /* ---------- Portalfigur: markera det gemensamma begreppet ---------- */
+  document.querySelectorAll('.portal').forEach((fig) => {
+    const b = fig.querySelector('.portal-knapp');
+    if (!b) return;
+    b.addEventListener('click', () => {
+      const pa = fig.classList.toggle('visa-kompetens');
+      b.setAttribute('aria-pressed', String(pa));
+      b.textContent = pa ? 'Ta bort markeringen' : 'Markera kompetens i teorierna';
     });
-    const FARG = ['var(--autonom)', 'var(--bla)', 'var(--d-overtid)', 'var(--gul)', 'var(--d-intervention)', 'var(--text-2)'];
-    const nr = (fig.dataset.nummer || '').split(',');
-    const rot = svg('svg', { viewBox: '0 0 600 480', class: 'karta-svg', role: 'group', 'aria-label': 'Karta över modulen' });
-    const former = [];
-    const knapp = (i, form, etikett) => {
-      const g = svg('g', { class: 'karta-del', tabindex: '0', role: 'button', 'aria-pressed': 'false', 'aria-label': `${delar[i].namn}: ${delar[i].fraga}` });
-      g.style.setProperty('--f', FARG[i]);
-      g.append(form, ...etikett);
-      g.addEventListener('click', (e) => { e.stopPropagation(); valj(i); });
-      g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); valj(i); } });
-      former[i] = g;
-      return g;
-    };
-    const text = (x, y, s, kl) => { const e = svg('text', { x, y, 'text-anchor': 'middle', class: kl }); e.textContent = s; return e; };
-    // Ram: avslutningen
-    rot.append(knapp(5, svg('rect', { x: 8, y: 8, width: 584, height: 464, rx: 20, class: 'karta-ram' }),
-      [text(300, 458, `${nr[5] ? nr[5] + ' ' : ''}${delar[5].namn}: ${delar[5].fraga.toLowerCase()}`, 'karta-ramtext')]));
-    const C = [[232, 185], [368, 185], [300, 300]], R = 118;
-    const lag = svg('g', { class: 'karta-cirklar' });
-    [0, 1, 2].forEach((i) => {
-      const [x, y] = C[i];
-      const ty = i === 2 ? y + 52 : y - 22, tx = i === 0 ? x - 52 : i === 1 ? x + 52 : x;
-      lag.append(knapp(i, svg('circle', { cx: x, cy: y, r: R, class: 'karta-cirkel' }),
-        [text(tx, ty, delar[i].namn, 'karta-namn'), text(tx, ty + 24, nr[i] ? `Avsnitt ${nr[i]}` : '', 'karta-nr')]));
-    });
-    rot.append(lag);
-    // Överlapp i mitten
-    rot.append(knapp(3, svg('circle', { cx: 300, cy: 222, r: 44, class: 'karta-mitt' }), [text(300, 228, delar[3].namn, 'karta-mitttext')]));
-    // Fördjupning vid SCT
-    rot.append(knapp(4, svg('circle', { cx: 512, cy: 92, r: 54, class: 'karta-fordj' }),
-      [text(512, 88, 'Growth', 'karta-fordjtext'), text(512, 108, 'Mindset', 'karta-fordjtext')]));
-    // Förklaring: alla frågor synliga
-    const forkl = el('div', { class: 'karta-forkl', role: 'group', 'aria-label': 'Modulens delar' });
-    const fk = delar.map((d, i) => {
-      const b = el('button', { type: 'button', 'aria-pressed': 'false', style: `--f: ${FARG[i]}` },
-        el('strong', { text: (nr[i] ? nr[i] + ' ' : '') + d.namn }), el('span', { text: d.fraga }));
-      b.addEventListener('click', () => valj(i));
-      forkl.append(b);
-      return b;
-    });
-    const detalj = el('div', { class: 'kont-detalj karta-detalj', 'aria-live': 'polite' }, el('p', { text: fig.dataset.tips || 'Välj en del av kartan.' }));
-    function valj(i) {
-      const d = delar[i];
-      former.forEach((g, j) => g.setAttribute('aria-pressed', String(i === j)));
-      fk.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
-      rot.classList.add('har-val');
-      detalj.style.setProperty('--k', FARG[i] === 'var(--gul)' ? '#b08f00' : FARG[i]);
-      detalj.replaceChildren(el('h4', { text: d.namn + (d.fraga ? ': ' + d.fraga.charAt(0).toLowerCase() + d.fraga.slice(1) : '') }), el('div', { html: d.html }));
-    }
-    lista.replaceWith(el('div', { class: 'karta' }, el('div', { class: 'karta-bild' }, rot), forkl), detalj);
   });
 
   /* ---------- Cirkumplexmodellen: fyra stilar med två delområden ----------
@@ -805,7 +754,6 @@
     kors: 'Klicka på en väg för att jämföra riktningarna.',
     intervall: 'Klicka på en skattning för att se vad den bygger på.',
     grupperade: 'Klicka på en metaanalys för att markera den.',
-    modulkarta: 'Klicka i kartan eller på en fråga för att läsa mer.',
   };
   const ikon = '<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path fill="currentColor" d="M9 2a2 2 0 0 1 2 2v6.2l.9-.3a2 2 0 0 1 2.5 1.2l.1.2.9-.2a2 2 0 0 1 2.3 1.4l.8-.1a2 2 0 0 1 2.3 2V17a7 7 0 0 1-7 7h-1.3a7 7 0 0 1-5.6-2.8l-3.3-4.4a2 2 0 0 1 3-2.6L7 15.6V4a2 2 0 0 1 2-2z"/></svg>';
   const visaTips = (fig, text) => {
