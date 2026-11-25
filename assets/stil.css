@@ -391,3 +391,28 @@ footer.fot div { max-width: 1180px; margin: 0 auto; padding: 18px 16px 28px; }
   .cirkel { gap: 2px; }
   .cirkel > span { font-size: 13px; }
 }
+
+/* ---------- Begreppsfigur: nästlade nivåer och ett sidobegrepp ---------- */
+.begreppsfigur {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px 20px; align-items: center;
+  padding: 18px 20px 14px; margin: 18px 0; background: var(--yta); border: 1px solid var(--linje); border-radius: var(--radie); box-shadow: var(--skugga);
+}
+.begreppsfigur > .figur-kalla { grid-column: 1 / -1; }
+.bf-niva { border-radius: 10px; padding: 12px 14px 14px; font-size: 15px; line-height: 1.45; }
+.bf-niva > p { margin: 0 0 4px; max-width: none; }
+.bf-niva > p strong { font-size: 17px; }
+.bf-niva > .bf-niva { margin-top: 10px; }
+.bf-1 { background: var(--bg); border: 2px solid var(--linje); }
+.bf-2 { background: var(--bla-yta); border: 2px solid #b9d6ea; }
+.bf-3 { background: var(--yta); border: 3px solid var(--bla); box-shadow: var(--skugga); }
+.bf-utfall { background: var(--yta); border: 3px dashed var(--d-overtid); }
+.bf-omfang { display: block; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2); margin-bottom: 2px; }
+.bf-fraga { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 14px; background: var(--gul); color: var(--pa-gul); }
+.bf-sida > p { margin: 0; max-width: none; }
+.bf-koppling { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-2); margin-bottom: 8px; }
+.bf-koppling::before { content: "←"; font-size: 20px; color: var(--text-2); }
+@media (max-width: 700px) {
+  .begreppsfigur { grid-template-columns: 1fr; }
+  .bf-koppling::before { content: "↑"; }
+}
+@media (min-width: 701px) { .bf-sida { align-self: end; margin-bottom: 26px; } }
