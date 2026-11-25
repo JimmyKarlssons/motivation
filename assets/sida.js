@@ -92,8 +92,10 @@
       const c = [...tr.children];
       return { namn: c[0].textContent.trim(), v: c.slice(1).map((td) => lasTal(td.textContent.trim())) };
     });
-    const alla = rader.flatMap((r) => r.v);
-    const steg = 0.2;
+    const alla = rader.flatMap((r) => r.v).filter((x) => !Number.isNaN(x));
+    const steg = fig.dataset.steg ? lasTal(fig.dataset.steg) : 0.2;
+    const dec = fig.dataset.dec ? +fig.dataset.dec : 2;
+    const enhet = fig.dataset.enhet ? '\u00a0' + fig.dataset.enhet : '';
     // Lämna minst ett halvt skalsteg utanför längsta stapeln, så att värdet får plats.
     let min = Math.min(0, Math.floor(Math.min(...alla) / steg) * steg);
     let max = Math.max(0, Math.ceil(Math.max(...alla) / steg) * steg);
@@ -112,20 +114,31 @@
       return { r, stapel, varde, spar };
     });
     const skala = el('div', { class: 'stapel-skala', 'aria-hidden': 'true' });
-    for (let x = min; x <= max + 1e-9; x += steg) skala.append(el('span', { style: `left: ${pos(x)}%`, text: tal(x, 1) }));
+    const skalDec = steg >= 1 ? 0 : 1;
+    for (let x = min; x <= max + 1e-9; x += steg) skala.append(el('span', { style: `left: ${pos(x)}%`, text: tal(x, skalDec) + enhet }));
     ytan.append(el('div'), skala);
 
     function visa(k) {
       [...val.children].forEach((b, j) => b.setAttribute('aria-pressed', String(j === k)));
       delar.forEach(({ r, stapel, varde, spar }) => {
         const x = r.v[k];
+        if (Number.isNaN(x)) {
+          stapel.style.width = '0';
+          varde.textContent = 'ingen uppgift';
+          varde.classList.add('saknas');
+          varde.style.left = `calc(${pos(0)}% + 6px)`;
+          varde.style.transform = 'none';
+          spar.setAttribute('aria-label', `${r.namn}: ingen uppgift`);
+          return;
+        }
+        varde.classList.remove('saknas');
         const a = pos(Math.min(0, x)), b = pos(Math.max(0, x));
         stapel.style.left = a + '%';
         stapel.style.width = Math.max(b - a, 0.6) + '%';
-        varde.textContent = tal(x);
+        varde.textContent = tal(x, dec) + enhet;
         varde.style.left = x >= 0 ? `calc(${b}% + 6px)` : `calc(${a}% - 6px)`;
         varde.style.transform = x >= 0 ? 'none' : 'translateX(-100%)';
-        spar.setAttribute('aria-label', `${r.namn}: ${tal(x)}`);
+        spar.setAttribute('aria-label', `${r.namn}: ${tal(x, dec)}${enhet}`);
       });
     }
     if (kolumner.length > 1) {
@@ -153,16 +166,27 @@
 
   /* ---------- Quiz ---------- */
   document.querySelectorAll('.quiz').forEach((ruta) => {
-    const fragor = JSON.parse(ruta.querySelector('script').textContent);
+    const banken = JSON.parse(ruta.querySelector('script').textContent);
+    const antal = ruta.dataset.antal ? +ruta.dataset.antal : 0;
     const status = el('div', { class: 'quiz-status' });
     const poang = el('span', { 'aria-live': 'polite' });
-    const om = el('button', { type: 'button', text: 'Börja om' });
-    status.append(poang, om);
-    let ratt = 0, besvarade = 0;
-    const uppdatera = () => { poang.textContent = `${ratt} rätt av ${besvarade} besvarade (${fragor.length} frågor)`; };
+    const om = el('button', { type: 'button', text: antal ? 'Nya frågor' : 'Börja om' });
+    const ovaFel = el('button', { type: 'button', text: 'Gör om felsvaren', hidden: '' });
+    status.append(poang, ovaFel, om);
+    let ratt = 0, besvarade = 0, fragor = [], fel = [];
+    const uppdatera = () => {
+      poang.textContent = `${ratt} rätt av ${besvarade} besvarade (${fragor.length} frågor)`;
+      ovaFel.hidden = !(besvarade === fragor.length && fel.length);
+    };
+    const blanda = (lista) => {
+      const a = [...lista];
+      for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+      return a;
+    };
 
-    function bygg() {
-      ratt = 0; besvarade = 0;
+    function bygg(urval) {
+      ratt = 0; besvarade = 0; fel = [];
+      fragor = urval || (antal ? blanda(banken).slice(0, antal) : banken);
       ruta.querySelectorAll('.quiz-fraga').forEach((f) => f.remove());
       fragor.forEach((q, i) => {
         const svar = el('p', { class: 'quiz-svar', 'aria-live': 'polite' });
@@ -176,7 +200,7 @@
               if (x.textContent === q.correct) x.classList.add('ratt');
             });
             if (!ok) b.classList.add('fel');
-            besvarade++; if (ok) ratt++;
+            besvarade++; if (ok) ratt++; else fel.push(q);
             svar.replaceChildren(el('strong', { class: ok ? 'ratt' : 'fel', text: ok ? 'Rätt. ' : `Inte rätt. Rätt svar: ${q.correct}. ` }), q.explanation || '');
             uppdatera();
           });
@@ -187,7 +211,356 @@
       uppdatera();
     }
     om.addEventListener('click', () => { bygg(); status.scrollIntoView({ block: 'nearest' }); });
+    ovaFel.addEventListener('click', () => { bygg([...fel]); status.scrollIntoView({ block: 'nearest' }); });
     ruta.prepend(status);
     bygg();
+  });
+
+  /* ================= Nya figurtyper ================= */
+
+  // Läser en tabell i figuren: rubriker och rader som text (celler med HTML behålls i .html).
+  const lasTabell = (fig) => {
+    const t = fig.querySelector('table');
+    const rub = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    const rader = [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((td) => ({ text: td.textContent.trim(), html: td.innerHTML.trim() })));
+    return { t, rub, rader };
+  };
+  // Lägger tabellen i en hopfälld "Visa som tabell" och flyttar källraden sist.
+  const tabellSist = (fig, t) => {
+    const d = el('details', {}, el('summary', { text: 'Visa som tabell' }));
+    t.replaceWith(d); d.append(t);
+    fig.append(d);
+    const k = fig.querySelector('.figur-kalla'); if (k) fig.append(k);
+  };
+  // Tangentbord för en grupp knappar: piltangenter flyttar och väljer.
+  const pilar = (knappar, valj) => knappar.forEach((b, i) => b.addEventListener('keydown', (e) => {
+    const s = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!s) return;
+    e.preventDefault();
+    const n = (i + s + knappar.length) % knappar.length;
+    knappar[n].focus(); valj(n);
+  }));
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const svg = (tag, attr = {}) => { const e = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(attr)) e.setAttribute(k, v); return e; };
+  let pilNr = 0;
+  const pilspets = (rot, farg, id, storlek = 12) => {
+    const defs = rot.querySelector('defs') || rot.appendChild(svg('defs'));
+    const m = svg('marker', { id, viewBox: '0 0 10 10', refX: '8', refY: '5', markerWidth: String(storlek), markerHeight: String(storlek), markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' });
+    m.append(svg('path', { d: 'M0,0 L10,5 L0,10 z', fill: farg }));
+    defs.append(m);
+  };
+
+  /* ---------- Flikar: lista där varje punkt börjar med **Rubrik**: ---------- */
+  document.querySelectorAll('.figur[data-typ="flikar"]').forEach((fig) => {
+    const lista = fig.querySelector('ul, ol');
+    const punkter = [...lista.children];
+    const rad = el('div', { class: 'flik-rad', role: 'tablist', 'aria-label': fig.dataset.etikett || 'Välj' });
+    const paneler = [];
+    const flikar = punkter.map((li, i) => {
+      const forsta = li.querySelector('strong');
+      const namn = forsta.textContent.replace(/:$/, '').trim();
+      forsta.remove();
+      // Ta bort inledande kolon efter rubriken
+      const tn = li.firstChild && li.firstChild.nodeType === 3 ? li.firstChild : (li.firstElementChild && li.firstElementChild.firstChild);
+      if (tn && tn.nodeType === 3) tn.textContent = tn.textContent.replace(/^\s*:\s*/, '');
+      const id = `${fig.id || 'flik'}-${i}`;
+      const panel = el('div', { class: 'flik-panel', role: 'tabpanel', id: id + '-p', 'aria-labelledby': id + '-f', tabindex: '0' });
+      panel.innerHTML = li.innerHTML;
+      // Rader med pilar blir en kedja av steg
+      panel.querySelectorAll('p').forEach((p) => {
+        if (!p.textContent.includes('→')) return;
+        const steg = p.innerHTML.split('→').map((s) => s.trim());
+        const kedja = el('div', { class: 'kedja' });
+        steg.forEach((s, j) => { if (j) kedja.append(el('span', { class: 'kedja-pil', 'aria-hidden': 'true', text: '→' })); kedja.append(el('span', { class: 'kedja-steg', html: s })); });
+        p.replaceWith(kedja);
+      });
+      const toner = (fig.dataset.toner || '').split(',');
+      if (toner[i]) panel.dataset.ton = toner[i].trim();
+      paneler.push(panel);
+      const b = el('button', { type: 'button', role: 'tab', id: id + '-f', 'aria-controls': id + '-p', 'aria-selected': 'false', tabindex: '-1', text: namn });
+      b.addEventListener('click', () => valj(i));
+      rad.append(b);
+      return b;
+    });
+    function valj(i) {
+      flikar.forEach((b, j) => { b.setAttribute('aria-selected', String(i === j)); b.tabIndex = i === j ? 0 : -1; });
+      paneler.forEach((p, j) => { p.hidden = i !== j; });
+    }
+    pilar(flikar, valj);
+    lista.replaceWith(rad, ...paneler);
+    valj(0);
+  });
+
+  /* ---------- Cykel och triangel: noder i en ring med pilar ----------
+     Tabell: Nod | Engelska | Innehåll (punkter avskilda med semikolon) */
+  document.querySelectorAll('.figur[data-typ="cykel"]').forEach((fig) => {
+    const { t, rader } = lasTabell(fig);
+    const dubbel = fig.dataset.dubbel === 'ja';
+    const n = rader.length;
+    const noder = rader.map((c) => ({ namn: c[0].text, eng: c[1].text, punkter: c[2].html.split(/;\s*/).filter(Boolean) }));
+    const yta = el('div', { class: 'cykel', 'data-n': String(n) });
+    const rot = svg('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true', class: 'cykel-svg' });
+    const mid = 'pil' + (++pilNr);
+    pilspets(rot, 'var(--text-2)', mid, 4.5);
+    const R = 34, start = -90;
+    const vinkel = (i) => (start + (360 / n) * i) * Math.PI / 180;
+    const glapp = (n === 3 ? 34 : 26) * Math.PI / 180;
+    for (let i = 0; i < n; i++) {
+      const a1 = vinkel(i) + glapp, a2 = vinkel(i + 1) - glapp;
+      const x1 = 50 + R * Math.cos(a1), y1 = 50 + R * Math.sin(a1), x2 = 50 + R * Math.cos(a2), y2 = 50 + R * Math.sin(a2);
+      const attr = { d: `M${x1},${y1} A${R},${R} 0 0 1 ${x2},${y2}`, fill: 'none', stroke: 'var(--text-2)', 'stroke-width': '.8', 'marker-end': `url(#${mid})` };
+      if (dubbel) { attr['marker-start'] = `url(#${mid})`; attr['stroke-dasharray'] = '2 1.4'; }
+      rot.append(svg('path', attr));
+    }
+    yta.append(rot);
+    if (fig.dataset.mitt) yta.append(el('div', { class: 'cykel-mitt', text: fig.dataset.mitt }));
+    const detalj = el('div', { class: 'kont-detalj', 'aria-live': 'polite' });
+    const knappar = noder.map((nod, i) => {
+      const a = vinkel(i);
+      const b = el('button', { type: 'button', class: 'cykel-nod', 'aria-pressed': 'false',
+        style: `left: ${50 + R * Math.cos(a)}%; top: ${50 + R * Math.sin(a)}%` }, el('span', { text: nod.namn }));
+      b.addEventListener('click', () => valj(i));
+      yta.append(b);
+      return b;
+    });
+    function valj(i) {
+      const nod = noder[i];
+      knappar.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
+      const ul = el('ul');
+      nod.punkter.forEach((p) => ul.append(el('li', { html: p[0] === '<' ? p : p[0].toUpperCase() + p.slice(1) })));
+      detalj.replaceChildren(el('h4', {}, nod.namn + ' ', el('span', { class: 'eng', text: nod.eng ? `(${nod.eng})` : '' })), ul);
+    }
+    pilar(knappar, valj);
+    t.before(yta, detalj);
+    tabellSist(fig, t);
+    valj(0);
+  });
+
+  /* ---------- Cirkumplexmodellen: fyra stilar med två delområden ----------
+     Tabell: Stil | Delområde | Engelska | Beskrivning, i ordning runt cirkeln medurs från vänster */
+  document.querySelectorAll('.figur[data-typ="cirkel"]').forEach((fig) => {
+    const { t, rader } = lasTabell(fig);
+    const STIL = {
+      'Autonomistöd': { farg: 'var(--autonom)', yta: 'var(--autonom-yta)', dim: 'behovsstödjande, låg grad av styrning' },
+      'Struktur': { farg: 'var(--bla)', yta: 'var(--bla-yta)', dim: 'behovsstödjande, hög grad av styrning' },
+      'Kontroll': { farg: 'var(--kontroll)', yta: 'var(--kontroll-yta)', dim: 'behovsmotarbetande, hög grad av styrning' },
+      'Kaos': { farg: 'var(--amot)', yta: 'var(--amot-yta)', dim: 'behovsmotarbetande, låg grad av styrning' },
+    };
+    const delar = rader.map((c) => ({ stil: c[0].text, namn: c[1].text, eng: c[2].text, text: c[3].html }));
+    const cx = 210, cy = 210, R1 = 132, R2 = 206;
+    const rot = svg('svg', { viewBox: '0 0 420 420', class: 'cirkel-svg', role: 'group', 'aria-label': 'Cirkumplexmodellen över lärares motiverande stil' });
+    const p = (r, grad) => [cx + r * Math.cos(grad * Math.PI / 180), cy + r * Math.sin(grad * Math.PI / 180)];
+    const sektor = (r0, r1, g0, g1) => {
+      const [a, b] = p(r1, g0), [c, d] = p(r1, g1), [e, f] = p(r0, g1), [g, h] = p(r0, g0);
+      return r0 === 0 ? `M${cx},${cy} L${a},${b} A${r1},${r1} 0 0 1 ${c},${d} Z`
+        : `M${a},${b} A${r1},${r1} 0 0 1 ${c},${d} L${e},${f} A${r0},${r0} 0 0 0 ${g},${h} Z`;
+    };
+    // Inre ring: stilarna (varannan del), yttre ring: delområdena
+    const stilar = [...new Set(delar.map((d) => d.stil))];
+    const etiketter = [];
+    stilar.forEach((s, k) => {
+      const g0 = 180 + 90 * k, g1 = g0 + 90;
+      rot.append(svg('path', { d: sektor(0, R1, g0, g1), fill: STIL[s].yta, stroke: 'var(--yta)', 'stroke-width': '3' }));
+      const [x, y] = p(R1 * 0.56, g0 + 45);
+      const tx = svg('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'middle', class: 'cirkel-stil', fill: STIL[s].farg });
+      tx.textContent = s; etiketter.push(tx);
+    });
+    const detalj = el('div', { class: 'kont-detalj', 'aria-live': 'polite' });
+    const bitar = delar.map((d, i) => {
+      const g0 = 180 + 45 * i, g1 = g0 + 45;
+      const g = svg('g', { class: 'cirkel-del', tabindex: '0', role: 'button', 'aria-pressed': 'false', 'aria-label': `${d.stil}: ${d.namn}` });
+      g.style.setProperty('--f', STIL[d.stil].farg);
+      g.style.setProperty('--fy', STIL[d.stil].yta);
+      g.append(svg('path', { d: sektor(R1 + 4, R2, g0, g1) }));
+      const [x, y] = p((R1 + R2) / 2 + 2, g0 + 22.5);
+      const tx = svg('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'middle', class: 'cirkel-namn' });
+      tx.textContent = d.namn; etiketter.push(tx); g.etikett = tx;
+      g.addEventListener('click', () => valj(i));
+      g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); valj(i); } });
+      rot.append(g);
+      return g;
+    });
+    etiketter.forEach((e) => rot.append(e));
+    function valj(i) {
+      const d = delar[i];
+      bitar.forEach((b, j) => { b.setAttribute('aria-pressed', String(i === j)); b.etikett.classList.toggle('vald', i === j); });
+      detalj.style.setProperty('--k', STIL[d.stil].farg);
+      detalj.replaceChildren(
+        el('h4', {}, `${d.stil}: ${d.namn} `, el('span', { class: 'eng', text: d.eng ? `(${d.eng})` : '' })),
+        el('p', { html: d.text }),
+        el('p', { class: 'kat', text: STIL[d.stil].dim[0].toUpperCase() + STIL[d.stil].dim.slice(1) }));
+    }
+    pilar(bitar, valj);
+    t.before(el('div', { class: 'cirkel' }, el('span', { class: 'ax-o', text: 'Behovsstödjande' }), el('span', { class: 'ax-v', text: 'Låg styrning' }), rot,
+      el('span', { class: 'ax-h', text: 'Hög styrning' }), el('span', { class: 'ax-n', text: 'Behovsmotarbetande' })), detalj);
+    tabellSist(fig, t);
+    valj(0);
+  });
+
+  // Ritar om pilar mellan element när storleken ändras.
+  const ritaOm = (behallare, rita) => {
+    const kor = () => requestAnimationFrame(rita);
+    if ('ResizeObserver' in window) new ResizeObserver(kor).observe(behallare); else window.addEventListener('resize', kor);
+    kor();
+  };
+  const kant = (rut, bas, sida) => {
+    const r = rut.getBoundingClientRect(), b = bas.getBoundingClientRect();
+    const x = { v: r.left - b.left, h: r.right - b.left, m: (r.left + r.right) / 2 - b.left }[sida[0]];
+    const y = { o: r.top - b.top, n: r.bottom - b.top, m: (r.top + r.bottom) / 2 - b.top }[sida[1]];
+    return [x, y];
+  };
+
+  /* ---------- Vägmodell: flera källor mot ett utfall ----------
+     Tabell: Källa | β | KI | Förklaring.  data-mal anger utfallet. */
+  document.querySelectorAll('.figur[data-typ="vag"]').forEach((fig) => {
+    const { t, rub, rader } = lasTabell(fig);
+    const kallor = rader.map((c) => ({ namn: c[0].html, ren: c[0].text, b: lasTal(c[1].text), ki: c[2].text, text: c[3] ? c[3].html : '' }));
+    const yta = el('div', { class: 'vag', style: `--rader: ${kallor.length}` });
+    const rot = svg('svg', { class: 'vag-svg', 'aria-hidden': 'true' });
+    const mal = el('div', { class: 'vag-mal', html: fig.dataset.mal || 'Utfall' });
+    const detalj = el('div', { class: 'kont-detalj', 'aria-live': 'polite' });
+    const idp = 'pil' + (++pilNr), idn = 'pil' + (++pilNr);
+    const knappar = kallor.map((k, i) => {
+      const b = el('button', { type: 'button', class: 'vag-kalla', 'aria-pressed': 'false', style: `grid-row: ${i + 1}` },
+        el('span', { html: k.namn }), el('small', { text: `${rub[1]} = ${tal(k.b)}` }));
+      b.addEventListener('click', () => valj(i));
+      return b;
+    });
+    yta.append(rot, ...knappar, mal);
+    let vald = 0;
+    function rita() {
+      const W = yta.clientWidth, H = yta.clientHeight;
+      rot.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      rot.replaceChildren();
+      pilspets(rot, 'var(--bla)', idp, 16);
+      pilspets(rot, 'var(--kontroll)', idn, 16);
+      const [mx, my] = kant(mal, yta, 'vm');
+      kallor.forEach((k, i) => {
+        const [x, y] = kant(knappar[i], yta, 'hm');
+        const neg = k.b < 0;
+        const linje = svg('path', {
+          d: `M${x + 4},${y} C${(x + mx) / 2},${y} ${(x + mx) / 2},${my + (i - (kallor.length - 1) / 2) * 10} ${mx - 6},${my + (i - (kallor.length - 1) / 2) * 10}`,
+          fill: 'none', stroke: neg ? 'var(--kontroll)' : 'var(--bla)', 'stroke-width': String(1.5 + Math.abs(k.b) * 18),
+          'stroke-dasharray': neg ? '6 4' : '', 'marker-end': `url(#${neg ? idn : idp})`,
+          opacity: i === vald ? '1' : '.45', 'stroke-linecap': 'butt' });
+        rot.append(linje);
+      });
+    }
+    function valj(i) {
+      vald = i;
+      const k = kallor[i];
+      knappar.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
+      detalj.style.setProperty('--k', k.b < 0 ? 'var(--kontroll)' : 'var(--bla)');
+      detalj.replaceChildren(el('h4', { html: k.namn }),
+        el('p', { class: 'kat', text: `${rub[1]} = ${tal(k.b)}` + (k.ki ? ` (95 % KI ${k.ki})` : '') }),
+        k.text ? el('p', { html: k.text }) : '');
+      rita();
+    }
+    pilar(knappar, valj);
+    t.before(yta, detalj);
+    tabellSist(fig, t);
+    ritaOm(yta, rita);
+    valj(0);
+  });
+
+  /* ---------- Korsförskjuten modell: två mått vid två tillfällen ----------
+     Tabell: Väg (A → B) | β | Förklaring */
+  document.querySelectorAll('.figur[data-typ="kors"]').forEach((fig) => {
+    const { t, rub, rader } = lasTabell(fig);
+    const vagar = rader.map((c) => { const [fran, till] = c[0].text.split('→').map((s) => s.trim()); return { fran, till, b: lasTal(c[1].text), text: c[2] ? c[2].html : '' }; });
+    const matt = [...new Set(vagar.flatMap((v) => [v.fran, v.till]))];
+    const yta = el('div', { class: 'kors' });
+    const rot = svg('svg', { class: 'vag-svg', 'aria-hidden': 'true' });
+    yta.append(rot, el('div', { class: 'kors-tid', style: 'grid-column: 1', text: 'Tid 1' }), el('div', { class: 'kors-tid', style: 'grid-column: 3', text: 'Tid 2' }));
+    const rutor = {};
+    matt.forEach((m, r) => [0, 1].forEach((tid) => {
+      const d = el('div', { class: 'kors-ruta', style: `grid-row: ${r + 2}; grid-column: ${tid * 2 + 1}`, text: m });
+      rutor[m + tid] = d; yta.append(d);
+    }));
+    const val = el('div', { class: 'diagram-val', role: 'group', 'aria-label': 'Välj väg' });
+    const detalj = el('div', { class: 'kont-detalj', 'aria-live': 'polite' });
+    const knappar = vagar.map((v, i) => {
+      const b = el('button', { type: 'button', 'aria-pressed': 'false', text: `${v.fran} → senare ${v.till.toLowerCase()}` });
+      b.addEventListener('click', () => valj(i));
+      val.append(b);
+      return b;
+    });
+    const ids = ['pil' + (++pilNr), 'pil' + (++pilNr)];
+    let vald = 0;
+    function rita() {
+      const W = yta.clientWidth, H = yta.clientHeight;
+      rot.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      rot.replaceChildren();
+      pilspets(rot, 'var(--linje)', ids[0], 12);
+      pilspets(rot, 'var(--d-overtid)', ids[1], 16);
+      // Stabilitet över tid (ingen siffra anges)
+      matt.forEach((m) => {
+        const [x1, y1] = kant(rutor[m + 0], yta, 'hm'), [x2, y2] = kant(rutor[m + 1], yta, 'vm');
+        rot.append(svg('line', { x1: x1 + 4, y1, x2: x2 - 6, y2, stroke: 'var(--linje)', 'stroke-width': '3', 'marker-end': `url(#${ids[0]})` }));
+      });
+      vagar.forEach((v, i) => {
+        const [x1, y1] = kant(rutor[v.fran + 0], yta, 'hm'), [x2, y2] = kant(rutor[v.till + 1], yta, 'vm');
+        const forskj = matt.indexOf(v.fran) < matt.indexOf(v.till) ? 1 : -1;
+        rot.append(svg('line', { x1: x1 + 4, y1: y1 + forskj * 8, x2: x2 - 8, y2: y2 - forskj * 8, stroke: 'var(--d-overtid)',
+          'stroke-width': String(1.5 + v.b * 30), opacity: i === vald ? '1' : '.3', 'marker-end': `url(#${ids[1]})` }));
+        const f = 0.3, lx = x1 + (x2 - x1) * f, ly = y1 + forskj * 8 + (y2 - y1 - forskj * 16) * f;
+        const tx = svg('text', { x: lx, y: ly + (forskj > 0 ? -12 : 22), 'text-anchor': 'start', class: 'kors-b', opacity: i === vald ? '1' : '.5' });
+        tx.textContent = `${rub[1]} ≈ ${tal(v.b)}`; rot.append(tx);
+      });
+    }
+    function valj(i) {
+      vald = i;
+      const v = vagar[i];
+      knappar.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
+      detalj.style.setProperty('--k', 'var(--d-overtid)');
+      detalj.replaceChildren(el('h4', { text: `${v.fran} vid tid 1 → ${v.till.toLowerCase()} vid tid 2` }),
+        el('p', { class: 'kat', text: `${rub[1]} ≈ ${tal(v.b)}` }), v.text ? el('p', { html: v.text }) : '');
+      rita();
+    }
+    pilar(knappar, valj);
+    t.before(val, yta, detalj);
+    tabellSist(fig, t);
+    ritaOm(yta, rita);
+    valj(0);
+  });
+
+  /* ---------- Skattningar med konfidensintervall ----------
+     Tabell: Skattning | värde | nedre | övre | förklaring  (tomma gränser = inget intervall redovisat) */
+  document.querySelectorAll('.figur[data-typ="intervall"]').forEach((fig) => {
+    const { t, rub, rader } = lasTabell(fig);
+    const poster = rader.map((c) => ({ namn: c[0].html, ren: c[0].text, v: lasTal(c[1].text), lo: lasTal(c[2].text), hi: lasTal(c[3].text), text: c[4] ? c[4].html : '' }));
+    const steg = fig.dataset.steg ? lasTal(fig.dataset.steg) : 0.05;
+    const varden = poster.flatMap((p) => [p.v, p.lo, p.hi]).filter((x) => !Number.isNaN(x));
+    const min = Math.min(0, Math.floor(Math.min(...varden) / steg) * steg) - (Math.min(...varden) < 0 ? 0 : steg);
+    const max = Math.ceil(Math.max(...varden) / steg) * steg + steg;
+    const pos = (x) => ((x - min) / (max - min)) * 100;
+    const yta = el('div', { class: 'staplar intervall' });
+    const detalj = el('div', { class: 'kont-detalj', 'aria-live': 'polite' });
+    const knappar = poster.map((p, i) => {
+      const spar = el('div', { class: 'stapel-spar' }, el('div', { class: 'stapel-noll', style: `left: calc(${pos(0)}% - 1px)` }));
+      if (!Number.isNaN(p.lo)) spar.append(el('div', { class: 'iv-linje', style: `left: ${pos(p.lo)}%; width: ${pos(p.hi) - pos(p.lo)}%` }));
+      spar.append(el('div', { class: 'iv-punkt', style: `left: ${pos(p.v)}%` }),
+        el('div', { class: 'stapel-varde', style: `left: calc(${pos(Number.isNaN(p.hi) ? p.v : p.hi)}% + 10px)`, text: tal(p.v) }));
+      const b = el('button', { type: 'button', class: 'iv-namn', 'aria-pressed': 'false', html: p.namn });
+      b.addEventListener('click', () => valj(i));
+      spar.addEventListener('click', () => valj(i));
+      yta.append(b, spar);
+      return b;
+    });
+    const skala = el('div', { class: 'stapel-skala', 'aria-hidden': 'true' });
+    for (let x = min; x <= max + 1e-9; x += steg * 2) skala.append(el('span', { style: `left: ${pos(x)}%`, text: tal(x, 1) }));
+    yta.append(el('div'), skala);
+    function valj(i) {
+      const p = poster[i];
+      knappar.forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
+      detalj.style.setProperty('--k', 'var(--d-intervention)');
+      detalj.replaceChildren(el('h4', { html: p.namn }),
+        el('p', { class: 'kat', text: `${rub[1]} = ${tal(p.v)}` + (Number.isNaN(p.lo) ? '' : ` (95 % KI ${tal(p.lo)} till ${tal(p.hi)})`) }),
+        p.text ? el('p', { html: p.text }) : '');
+    }
+    pilar(knappar, valj);
+    t.before(yta, detalj);
+    tabellSist(fig, t);
+    valj(0);
   });
 })();

@@ -293,3 +293,101 @@ footer.fot div { max-width: 1180px; margin: 0 auto; padding: 18px 16px 28px; }
   .ingress { margin-top: 24px; }
 }
 .fordjupning .doi { display: block; }
+
+/* ---------- Flikar ---------- */
+.flik-rad { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 2px solid var(--linje); margin-bottom: 14px; }
+.flik-rad button {
+  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; padding: 8px 14px; margin-bottom: -2px;
+  border: 0; border-bottom: 4px solid transparent; background: none; color: var(--text-2);
+}
+.flik-rad button:hover { color: var(--text); border-bottom-color: var(--linje); }
+.flik-rad button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--gul); }
+.flik-panel > :first-child { margin-top: 0; }
+.flik-panel > :last-child { margin-bottom: 0; }
+.flik-panel:focus-visible { outline: 2px solid var(--bla); outline-offset: 4px; }
+.kedja { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; }
+.kedja-steg { padding: 8px 12px; border-radius: var(--radie); background: var(--bg); border: 1px solid var(--linje); font-size: 15px; line-height: 1.3; }
+.kedja-pil { color: var(--text-2); font-weight: 700; }
+.flik-panel[data-ton="ljus"] .kedja-steg { background: var(--autonom-yta); border-color: transparent; }
+.flik-panel[data-ton="mork"] .kedja-steg { background: var(--kontroll-yta); border-color: transparent; }
+
+/* ---------- Cykel och triangel ---------- */
+.cykel { position: relative; width: min(100%, 460px); aspect-ratio: 1; margin: 0 auto; }
+.cykel-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cykel-nod {
+  position: absolute; transform: translate(-50%, -50%); width: 36%; min-height: 64px; padding: 8px 10px;
+  font: inherit; font-size: 15px; font-weight: 600; line-height: 1.25; cursor: pointer;
+  border-radius: 10px; border: 2px solid var(--bla); background: var(--yta); color: var(--text); box-shadow: var(--skugga);
+}
+.cykel-nod:hover { background: var(--bla-yta); }
+.cykel-nod[aria-pressed="true"] { background: var(--bla); color: #fff; }
+.cykel-mitt { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34%; text-align: center; font-size: 14px; color: var(--text-2); font-style: italic; }
+.kont-detalj ul { margin: 8px 0 0; }
+@media (max-width: 480px) { .cykel-nod { font-size: 13px; padding: 6px; min-height: 54px; width: 40%; } }
+
+/* ---------- Cirkumplexmodellen ---------- */
+.cirkel { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 6px; }
+.cirkel-svg { grid-column: 2; grid-row: 2; overflow: visible; }
+.cirkel > span { font-size: 14px; font-weight: 600; color: var(--text-2); text-align: center; }
+.cirkel .ax-o { grid-column: 2; grid-row: 1; }
+.cirkel .ax-n { grid-column: 2; grid-row: 3; }
+.cirkel .ax-v, .cirkel .ax-h { grid-row: 2; writing-mode: vertical-rl; }
+.cirkel .ax-v { grid-column: 1; transform: rotate(180deg); }
+.cirkel .ax-h { grid-column: 3; }
+.cirkel-svg { width: 100%; height: auto; display: block; }
+.cirkel-stil { font-size: 14px; font-weight: 700; }
+.cirkel-axel { font-size: 14px; fill: var(--text-2); font-weight: 600; }
+.cirkel-del { cursor: pointer; outline: none; }
+.cirkel-del path { fill: var(--yta); stroke: var(--f); stroke-width: 2; transition: fill .2s; }
+.cirkel-namn { font-size: 15px; fill: var(--text); pointer-events: none; }
+.cirkel-stil { pointer-events: none; }
+.cirkel-del:hover path { fill: var(--bg); }
+.cirkel-del:focus-visible path { stroke-width: 4; }
+.cirkel-del[aria-pressed="true"] path { fill: var(--fy); stroke-width: 5; }
+.cirkel-namn.vald { font-weight: 700; }
+
+/* ---------- Vägmodell och korsförskjuten modell ---------- */
+.vag { position: relative; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(48px, 1fr) minmax(0, .8fr); grid-template-rows: repeat(var(--rader), minmax(66px, auto)); gap: 10px 0; }
+.vag-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.vag-kalla {
+  grid-column: 1; position: relative; z-index: 1; font: inherit; font-size: 15px; line-height: 1.25; text-align: left; cursor: pointer;
+  padding: 8px 12px; border-radius: var(--radie); border: 2px solid var(--linje); background: var(--yta); color: var(--text);
+}
+.vag-kalla small { display: block; font-size: 13px; color: var(--text-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.vag-kalla:hover { border-color: var(--bla); }
+.vag-kalla[aria-pressed="true"] { border-color: var(--bla); background: var(--bla-yta); }
+.vag-mal {
+  grid-column: 3; grid-row: 1 / -1; align-self: center; position: relative; z-index: 1;
+  padding: 14px 12px; border-radius: var(--radie); background: var(--gul); color: var(--pa-gul); font-weight: 700; text-align: center;
+}
+.kors { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(60px, 1.3fr) minmax(0, 1fr); grid-template-rows: auto 70px 70px; row-gap: 46px; margin: 6px 0; }
+.kors-tid { font-size: 13px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; text-align: center; margin-bottom: -36px; }
+.kors-ruta { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border-radius: var(--radie); background: var(--yta); border: 2px solid var(--d-overtid); font-weight: 600; font-size: 15px; }
+.kors-b { font-size: 14px; font-weight: 700; fill: var(--d-overtid); paint-order: stroke; stroke: var(--yta); stroke-width: 4px; }
+
+/* ---------- Skattningar med intervall ---------- */
+.intervall .stapel-spar { cursor: pointer; }
+.iv-namn { font: inherit; font-size: 15px; line-height: 1.25; text-align: right; cursor: pointer; background: none; border: 0; padding: 4px 6px; border-radius: 4px; color: var(--text); }
+.iv-namn:hover { background: var(--bg); }
+.iv-namn[aria-pressed="true"] { background: var(--bla-yta); font-weight: 600; }
+.iv-linje { position: absolute; top: 13px; height: 2px; background: var(--d-intervention); }
+.iv-linje::before, .iv-linje::after { content: ""; position: absolute; top: -5px; width: 2px; height: 12px; background: var(--d-intervention); }
+.iv-linje::before { left: 0; } .iv-linje::after { right: 0; }
+.iv-punkt { position: absolute; top: 7px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--d-intervention); border: 2px solid var(--yta); }
+.stapel-varde.saknas { font-weight: 400; font-style: italic; color: var(--text-2); }
+
+/* Länkar i flikar till avsnitt */
+.till-avsnitt { display: inline-block; margin-top: 4px; font-weight: 600; }
+.quiz-status > span { flex: 1; }
+.quiz-status button[hidden] { display: none; }
+
+/* Smala skärmar: vägmodell och cirkel */
+@media (max-width: 560px) {
+  .vag { grid-template-columns: minmax(0, 1.4fr) minmax(32px, .6fr) minmax(0, 1fr); }
+  .vag-kalla { font-size: 14px; padding: 6px 8px; }
+  .vag-mal { font-size: 14px; padding: 10px 6px; overflow-wrap: anywhere; hyphens: auto; }
+  .cirkel-namn { font-size: 21px; }
+  .cirkel-stil { font-size: 17px; }
+  .cirkel { gap: 2px; }
+  .cirkel > span { font-size: 13px; }
+}
